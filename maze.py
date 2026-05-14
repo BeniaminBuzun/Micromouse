@@ -19,32 +19,54 @@ class Maze:
     #left = -1
     #right = 1
 
-    def calculate_direction(self,current_cell,facing_direction,sensor_direction):
-        direction = (facing_direction + sensor_direction )%4
+    def create_connection(self,cell1,cell2,direction):
         if direction == 0:
-            return current_cell.north
+            cell1.north = cell2
+            cell2.south = cell1
         if direction == 1:
-            return current_cell.east
+            cell1.east = cell2
+            cell2.west = cell1
         if direction == 2:
-            return current_cell.south
+            cell1.south = cell2
+            cell2.north = cell1
         if direction == 3:
-            return current_cell.west
-        
+            cell1.west = cell2
+            cell2.east = cell1
+
     def update_maze(self,current_cell,facing_direction,sensor_L,sensor_F,sensor_R):
         print(sensor_F)
-        cell_R = current_cell
+        print("PPP")
+        # add cells in front
+        cell_prev = current_cell
+        current_direction = facing_direction
         for i in range(math.floor(sensor_F/self.cell_size)):
-            new_cell = Cell(cell_R.pos[0]+1,cell_R.pos[1])
+            new_pos = (cell_prev.pos[0] - current_direction +1 if current_direction%2 == 0 else cell_prev.pos[0], cell_prev.pos[1]+current_direction-2 if current_direction % 2 == 1 else cell_prev.pos[1])
+            new_cell = Cell(new_pos[0], new_pos[1])
             self.maze.add(new_cell)
-            connection = self.calculate_direction(current_cell,facing_direction,0)
-            connection = new_cell
-            connection2 = self.calculate_direction(new_cell,facing_direction+2,0)
-            connection2 = cell_R
-            cell_R = new_cell
-            print("A")
-#             for i in range(math.floor(sensor_R/self.cell_size)):
-#                 print("B")
-#             for i in range(math.floor(sensor_L/self.cell_size)):
-#                 print("C")
+            self.create_connection(cell_prev,new_cell,current_direction)
+            cell_prev = new_cell
+
+        # add cells on a left
+        cell_prev = current_cell
+        current_direction = (facing_direction-1)%4
+
+        for i in range(math.floor(sensor_L/self.cell_size)):
+            new_pos = (cell_prev.pos[0] - current_direction +1 if current_direction%2 == 0 else cell_prev.pos[0], cell_prev.pos[1]+current_direction-2 if current_direction % 2 == 1 else cell_prev.pos[1])
+            new_cell = Cell(new_pos[0], new_pos[1])
+            self.maze.add(new_cell)
+            self.create_connection(cell_prev,new_cell,current_direction)
+            cell_prev = new_cell
+
+        # add cells on a right
+        cell_prev = current_cell
+        current_direction = (facing_direction+1)%4
+
+        for i in range(math.floor(sensor_R/self.cell_size)):
+            new_pos = (cell_prev.pos[0] - current_direction +1 if current_direction%2 == 0 else cell_prev.pos[0], cell_prev.pos[1]+current_direction-2 if current_direction % 2 == 1 else cell_prev.pos[1])
+            new_cell = Cell(new_pos[0], new_pos[1])
+            self.maze.add(new_cell)
+            self.create_connection(cell_prev,new_cell,current_direction)
+            cell_prev = new_cell
+
         for element in self.maze:
             print(element)

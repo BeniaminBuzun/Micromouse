@@ -2,7 +2,7 @@ import time
 import math
 import uasyncio as asyncio
 from machine import Pin, PWM
-from main import MOTOR_SPEED, PULSES_PER_REV
+from stats import MOTOR_SPEED, PULSES_PER_REV
 
 class Robot:
     def __init__(self,motorR,motorL,sensorR,sensorL,sensorF):

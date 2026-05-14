@@ -7,8 +7,6 @@ from distance_sensor import DistanceSensor
 from robot import Robot
 from maze import Maze
 
-PULSES_PER_REV = 40  # adjust to your encoder resolution
-MOTOR_SPEED = 30
         
 motor_right  = Motor(fwd_pin=6, rev_pin=7, encoder_pin=11)
 motor_left = Motor(fwd_pin=8, rev_pin=9, encoder_pin=10)
@@ -31,6 +29,7 @@ async def main():
     F = sensorF.get_distance_cm()
     R = sensorR.get_distance_cm()
     print(L,R,F)
+    print("Updating maze...")
     maze.update_maze(maze.first,0,L,F,R)
 #     while True:
 #         L = sensorL.get_distance_cm()
