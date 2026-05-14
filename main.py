@@ -191,7 +191,7 @@ class Robot:
         
         duty = int((MOTOR_SPEED / 100.0) * 65535)
         alpha = 1000 # coefficient -- correction based on error value
-        beta = 5000 # coefficient -- correction based on error value change (for smoothness)
+        beta = 5000 # coefficient -- correction based on error value change	 (for smoothness)
         # COEFFICIENTS ARE TO BE ADJUSTED, FEEL FREE TO CHANGE THEIR VALUES
         
         d_error = 0
@@ -238,8 +238,8 @@ class Cell:
         self.west = None
         self.east = None
         
-    def __print__(self):
-        return self.north+self.south+self.west+self.east
+    def __str__(self):
+        return self.pos
 
 
 
@@ -247,8 +247,9 @@ class Labirynth:
     def __init__(self,cell_size):
         self.cell_size = cell_size
         self.labirynth = set()
-        self.first = Cell()
+        self.first = Cell(0,0)
         self.labirynth.add(self.first)
+        
 # north = 0
 # east = 1
 # south = 2
@@ -270,22 +271,23 @@ class Labirynth:
             return current_cell.west
         
     def update_labirynth(self,current_cell,facing_direction,sensor_L,sensor_F,sensor_R):
-            print(sensor_F)
-            cell_R = current_cell
-            for i in range(math.floor(sensor_F/self.cell_size)):
-                new_cell = Cell()
-                connection = self.calculate_direction(current_cell,facing_direction,0)
-                connection = new_cell
-                connection2 = self.calculate_direction(new_cell,facing_direction+2,0)
-                connection2 = cell_R
-                cell_R = new_cell
-
+        print(sensor_F)
+        cell_R = current_cell
+        for i in range(math.floor(sensor_F/self.cell_size)):
+            new_cell = Cell(cell_R.pos[0]+1,cell_R.pos[1])
+            self.labirynth.add(new_cell)
+            connection = self.calculate_direction(current_cell,facing_direction,0)
+            connection = new_cell
+            connection2 = self.calculate_direction(new_cell,facing_direction+2,0)
+            connection2 = cell_R
+            cell_R = new_cell
+            print("A")
 #             for i in range(math.floor(sensor_R/self.cell_size)):
 #                 print("B")
 #             for i in range(math.floor(sensor_L/self.cell_size)):
 #                 print("C")
-            print(current_cell)
-        
+        for element in self.labirynth:
+            print(element)
 motor_right  = Motor(fwd_pin=6, rev_pin=7, encoder_pin=11)
 motor_left = Motor(fwd_pin=8, rev_pin=9, encoder_pin=10)
 sensorR = DistanceSensor(3,0,11)
