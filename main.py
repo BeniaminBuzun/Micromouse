@@ -1,7 +1,5 @@
 from machine import Pin, PWM
-import time
 import uasyncio as asyncio
-import math
 from motor import Motor
 from distance_sensor import DistanceSensor
 from robot import Robot

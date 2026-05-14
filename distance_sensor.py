@@ -9,7 +9,7 @@ class DistanceSensor:
         self.echo = Pin(echo_pin, Pin.IN)
         self.trigger.low()
         self.samples = samples
-        self._readings = [0] * samples # create a buer of length `samples`
+        self._readings = [0.0] * samples # create a buffer of length `samples`
         
     def _raw_distance_cm(self):
         """Single raw measurement."""
@@ -31,7 +31,7 @@ class DistanceSensor:
             end = time.ticks_us()
  
         duration = time.ticks_diff(end, start)
-        return (duration * 0.0343) / 2
+        return duration * 0.0343 / 2
  
     async def auto_update(self): # we trigger this method once
         while True:
