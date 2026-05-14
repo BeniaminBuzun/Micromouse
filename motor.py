@@ -1,7 +1,7 @@
 import time
 import uasyncio as asyncio
 from machine import Pin, PWM
-from main import PULSES_PER_REV
+from stats import PULSES_PER_REV
 
 class Motor:
     def __init__(self, fwd_pin, rev_pin, encoder_pin):
