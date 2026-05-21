@@ -4,20 +4,17 @@ from motor import Motor
 from distance_sensor import DistanceSensor
 from robot import Robot
 from maze import Maze
+from pico_sender import connect_to_wifi, send_maze_to_server
+import math
 
-<<<<<<< HEAD
-        
-=======
- 
->>>>>>> c26f4a09af471f8035a9ec658a239a261ea219bb
 motor_right  = Motor(fwd_pin=6, rev_pin=7, encoder_pin=11)
 motor_left = Motor(fwd_pin=8, rev_pin=9, encoder_pin=10)
 sensorR = DistanceSensor(3,0,11)
 sensorF = DistanceSensor(5,2,11)
 sensorL = DistanceSensor(4,1,11)
 
-robot = Robot(motor_right, motor_left, sensorL, sensorF, sensorR)
-maze = Maze(20)
+robot = Robot(motor_right, motor_left, sensorR, sensorL, sensorF)
+maze = Maze(40)
 
 
 async def update_maze_loop():
@@ -27,29 +24,40 @@ async def update_maze_loop():
         R = sensorR.get_distance_cm()
         print(f"L: {L:.1f} cm | F: {F:.1f} cm | R: {R:.1f} cm")
         maze.update_maze(maze.first, 0, L, F, R)
+        send_maze_to_server(maze)  # Send updated maze to server
         await asyncio.sleep_ms(500)  # aktualizuj co 0.5 sekundy
+async def odometry_loop():
+    while True:
+        robot.update_odometry()
+        await asyncio.sleep_ms(100)
+        # print(f"Odometry: x={robot.x:.2f} cm, y={robot.y:.2f} cm, theta={math.degrees(robot.theta):.1f}°")
 
+direction = 0
+posX = 0
+posY = 0
 async def main():
+    # Connect to WiFi
+    # wlan = connect_to_wifi('ABCD', '12345678')  # Replace with your WiFi credentials
+    # print("Connected to WiFi")
     asyncio.create_task(sensorL.auto_update())
     asyncio.create_task(sensorR.auto_update())
     asyncio.create_task(sensorF.auto_update())
-    
-#     await robot.drive_centered(distance=25)
+    await asyncio.sleep_ms(1000)  # Allow sensors to start updating
+    maze.update_maze(maze.first, direction, robot.sensorL.get_distance_cm(), robot.sensorF.get_distance_cm(), robot.sensorR.get_distance_cm())
+    print("Initial sensor readings:")
+    await asyncio.sleep_ms(2000)
+    # await robot.drive_centered_towards_wall_V2(6,24)
+    await robot.drive_centered_towards_wall(24,24)
+    await asyncio.sleep_ms(1000)
+    await robot.rotate_by_90("R")
     await asyncio.sleep_ms(1000)
 
-    L = sensorL.get_distance_cm()
-    F = sensorF.get_distance_cm()
-    R = sensorR.get_distance_cm()
-    print(L,R,F)
-    print("Updating maze...")
-    maze.update_maze(maze.first,0,L,F,R)
-#     while True:
-#         L = sensorL.get_distance_cm()
-#         F = sensorF.get_distance_cm()
-#         R = sensorR.get_distance_cm()
-#         
-#         print(f"L: {L:.1f} cm | F: {F:.1f} cm | R: {R:.1f} cm")
-#         
-#         await asyncio.sleep_ms(100)
-
+    await robot.drive_centered_towards_wall(10,24)
+    # await robot.rotate_by_90("L")
+    # await robot.drive_centered_towards_wall(9,24)
+    # await robot.rotate_by_90("L")
+    # await robot.drive_centered_towards_wall(9,24)
+    # await robot.rotate_by_90("L")
+    # await robot.drive_centered_towards_wall(9,24)
+    # await robot.rotate_by_90("L")
 asyncio.run(main())
