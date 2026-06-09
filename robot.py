@@ -229,17 +229,23 @@ class Robot:
         self.motorR.motor_fwd.duty_u16(0)
         self.motorL.motor_rev.duty_u16(0)
         self.motorR.motor_rev.duty_u16(0)
-        await asyncio.sleep_ms(50)
+        # await asyncio.sleep_ms(50)
 
     async def drive_centered_towards_wall_V2(self, distance_to_wall,wall_separation=20,margin=5):
+        def map_range(x, old_min, old_max, new_min, new_max):
+            # Prevent division by zero if the old range is a single point
+            if old_max == old_min:
+                return new_min
+            
+            # Apply the linear interpolation formula
+            return new_min + ((x - old_min) * (new_max - new_min) / (old_max - old_min))
         angles = []
         duty = int((MOTOR_SPEED / 100.0) * 65535)
 
         self.motorL.count = 0
         self.motorR.count = 0
-        last_motor_count = 0
-        alpha = 30
-        beta = 1
+        alpha = -1000
+        angle_range = 25
         self.motorL.motor_rev.duty_u16(0)
         self.motorR.motor_rev.duty_u16(0)
         self.motorL.motor_fwd.duty_u16(0)
@@ -248,34 +254,35 @@ class Robot:
         last_distance_l = self.sensorL.get_distance_cm()
         while self.sensorF.get_distance_cm() > distance_to_wall:
             
-            l_distance = self.sensorR.get_distance_cm()
+            l_distance = self.sensorL.get_distance_cm()
             r_distance = self.sensorR.get_distance_cm()
-            print(f"Front: {self.sensorF.get_distance_cm():.1f} cm | Left: {l_distance:.1f} cm | Right: {r_distance:.1f} cm")
             both_motor_count = (self.motorL.count + self.motorR.count) // 2
             driven_distance = both_motor_count * 0.18
-            if driven_distance > 0 and l_distance < wall_separation: # if there are both walls nearby
+            if driven_distance > 0 : # if there are both walls nearby
                 angle = math.atan((last_distance_l-l_distance)/driven_distance)*180/math.pi # calculate angle to the wall based on difference between left and right distance and distance traveled since last correction
                 angles.append(angle)
-                angles = angles[-5:]
+                angles = angles[-1:]
                 angle = sum(angles)/len(angles)
-                print("avg angle: " + str(angle))
                 print("Angle to wall: " + str(angle))
 
-                print(f"Driven distance: {driven_distance:.2f} cm")
-                print("duty: " + str(duty), "correction: " + str(math.floor(math.fabs(angle)*alpha)))
-                error = wall_separation - r_distance
-                print(error)
-                desired_angle = (wall_separation / 2 / error * 90)-90
+                offset = min(max((wall_separation/2) - l_distance,-wall_separation/2),wall_separation/2)
+
+                print("Error: " + str(offset))
+                desired_angle = map_range(offset, -wall_separation/2, wall_separation/2, -angle_range, angle_range)
                 print("Desired angle: " + str(desired_angle))
-                angle = angle - desired_angle
-                if angle > 0:
-                    self.motorL.motor_fwd.duty_u16(min(65535, max(0, duty-(math.floor(math.fabs(angle)*alpha)))))
-                    self.motorR.motor_fwd.duty_u16(min(65535, max(0, duty)))
+                angle_difference = desired_angle - angle
+                print("Angle difference: " + str(angle_difference))
+                applied_force = math.floor(angle_difference * alpha)
+                print("Applied force: " + str(math.fabs(applied_force)))
+
+                # if applied_force > 0:
+                self.motorL.motor_fwd.duty_u16(min(65535, max(0, int(duty+(math.fabs(applied_force))))))
+                self.motorR.motor_fwd.duty_u16(min(65535, max(0, int(duty-(math.fabs(applied_force))))))
 
 
-                else:
-                    self.motorL.motor_fwd.duty_u16(min(65535, max(0, duty)))
-                    self.motorR.motor_fwd.duty_u16(min(65535, max(0, duty-(math.floor(math.fabs(angle)*alpha)))))
+                # else:
+                #     self.motorL.motor_fwd.duty_u16(min(65535, max(0, duty)))
+                #     self.motorR.motor_fwd.duty_u16(min(65535, max(0, int(duty-(math.fabs(applied_force))))))
 
             else:
                 self.motorL.motor_fwd.duty_u16(duty)
@@ -285,4 +292,120 @@ class Robot:
             self.motorR.count = 0
             last_distance_l = l_distance
             last_distance_r = r_distance
-            await asyncio.sleep_ms(200)
+            await asyncio.sleep_ms(100)
+    async def drive_centered_towards_wall_V3(self, distance_to_wall,wall_separation=20,margin=5):
+        ANGLE_CHECK_INTERVAL = 1
+        duty = int((MOTOR_SPEED / 100.0) * 65535)
+        angles = []
+
+        self.motorL.counter = 0
+        self.motorR.counter = 0
+        alpha =400
+        beta = 150
+        offsetLimit = 8
+        self.motorL.motor_rev.duty_u16(0)
+        self.motorR.motor_rev.duty_u16(0)
+        self.motorL.motor_fwd.duty_u16(0)
+        self.motorR.motor_fwd.duty_u16(0)
+        last_distance_r = self.sensorR.get_distance_cm()
+        last_distance_l = self.sensorL.get_distance_cm()
+        last_offset = 0
+        i = 0
+        while self.sensorF.get_distance_cm() > distance_to_wall:
+
+        # calculate centering force 
+            l_distance = self.sensorL.get_distance_cm()
+            r_distance = self.sensorR.get_distance_cm()
+
+            if l_distance > wall_separation*3/4 and r_distance > wall_separation*3/4:
+                force1 = 0
+                offset = 0
+                print("NO WALLS NEARBY")
+            elif l_distance > wall_separation*3/4:
+                offset = -min(max((wall_separation/2)-3 - r_distance,-wall_separation/2-3),wall_separation/2+3)
+                offset = min(max(offset,-offsetLimit),offsetLimit)
+                force1 = alpha * offset
+
+
+                print("LEFT WALL NEARBY")
+            elif r_distance > wall_separation*3/4:
+                offset = min(max((wall_separation/2)-3 - l_distance,-wall_separation/2-3),wall_separation/2+3)
+                offset = min(max(offset,-offsetLimit),offsetLimit)
+
+                force1 = alpha * offset
+                print("RIGHT WALL NEARBY")
+            else:
+                offset = r_distance - l_distance 
+                offset = min(max(offset,-offsetLimit),offsetLimit)
+                force1 = alpha * offset
+                print("BOTH WALLS NEARBY")
+
+    # multiply force by 1.5 if offset is increasing, otherwise multiply by 0.7 to prevent overshooting
+            if math.fabs(offset) > last_offset:
+                force1 *= 1.5
+            else:
+                force1 *= 0.7
+            last_offset = math.fabs(offset)
+            force2 = 0
+
+            both_motor_count = (self.motorL.counter + self.motorR.counter) // 2
+            driven_distance = both_motor_count * 0.18
+            print(driven_distance)
+            if i%ANGLE_CHECK_INTERVAL == 0 and driven_distance > 0 and l_distance < wall_separation*3/4 and r_distance < wall_separation*3/4:
+                # calculate angle to the wall based on difference between left and right distance and distance traveled since last correction
+                
+                angle_r = math.atan((last_distance_r-r_distance)/driven_distance)*180/math.pi 
+                angle_l = -math.atan((last_distance_l-l_distance)/driven_distance)*180/math.pi
+                if math.fabs(angle_r-angle_l) <30:
+                    angle = min(max((math.fabs(angle_r)+math.fabs(angle_l))/2,-15),15)
+                else:
+                    print("Angle difference between left and right is too big, skipping angle correction")
+                    angle = 0
+                if r_distance - last_distance_r < 0 and l_distance - last_distance_l > 0:
+                    force2 = -math.fabs(beta * angle)
+                elif r_distance - last_distance_r > 0 and l_distance - last_distance_l < 0:
+                    force2 = math.fabs(beta * angle)
+                else:
+                    force2 = 0
+                # force2 = 0
+
+                # if math.fabs(angle) > 10:
+                # force2 = beta * angle   
+                print("distance left: " + str(l_distance) + " distance right: " + str(r_distance))
+                print("last distance left: " + str(last_distance_l) + " last distance right: " + str(last_distance_r))
+                print("Angle to wall R: " + str(angle_r) + " Angle to wall L: " + str(angle_l))
+                print("Chosen angle: " + str(angle))
+                print("Force2 based on angle: " + str(force2))
+                last_distance_l = l_distance
+                last_distance_r = r_distance
+                self.motorL.counter = 0
+                self.motorR.counter = 0
+
+            #     angle = math.atan((last_distance_r-r_distance)/driven_distance)*180/math.pi # calculate angle to the wall based on difference between left and right distance and distance traveled since last correction
+            #     # print("Angle to wall: " + str(angle))
+            #     # print("Offset: " + str(last_distance_r-r_distance))
+            #     angle = min(max(angle,-25),25)
+            #     if math.fabs(angle) > 5:
+            #         force1 = 0
+            #     angles.append(angle)
+            #     angles = angles[-2:]
+            #     angle = sum(angles)/len(angles)
+            #     force2 = beta * angle
+            #     # print("Average angle: " + str(angle))
+            #     # print("___")
+
+            applied_force = force1 +force2
+            self.motorL.motor_fwd.duty_u16(min(65535, max(0, int(duty+(applied_force)))))
+            self.motorR.motor_fwd.duty_u16(min(65535, max(0, int(duty-(applied_force)))))
+            print("r_distance: " + str(r_distance) + " l_distance: " + str(l_distance) + " offset: " + str(offset))
+            print("force1: " + str(force1) + " force2: " + str(force2) + " applied_force: " + str(applied_force))
+            print("_____")
+            await asyncio.sleep_ms(100)
+            self.motorL.motor_rev.duty_u16(0)
+            self.motorR.motor_rev.duty_u16(0)
+            self.motorL.motor_fwd.duty_u16(0)
+            self.motorR.motor_fwd.duty_u16(0)
+            i+=1
+            await asyncio.sleep_ms(20)
+
+        print("Final front distance: " + str(self.sensorF.get_distance_cm()))
