@@ -18,6 +18,7 @@ class Motor:
     def _encoder_isr(self, pin):
         self.count += 1
         self.counter +=1
+        
     async def rotate_degrees(self, degrees, speed=50, direction=1, timeout_ms=10000):
         pulses_needed = (degrees / 360.0) * PULSES_PER_REV
         self.count = 0

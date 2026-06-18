@@ -190,7 +190,7 @@ class Robot:
                     print(f"Error: {error} | dError: {d_error} | Correction: {correction}")
 
                     print("L:duty: " + str(min(65535, max(0, duty - correction))) + " R:duty: " + str(min(65535, max(0, duty + correction))))
-                    if- correction > 0:
+                    if correction > 0:
                         self.motorL.motor_fwd.duty_u16(min(65535, max(0, duty - correction)))
                         self.motorR.motor_fwd.duty_u16(min(65535, max(0, duty)))
                     else:
@@ -230,6 +230,94 @@ class Robot:
         self.motorL.motor_rev.duty_u16(0)
         self.motorR.motor_rev.duty_u16(0)
         # await asyncio.sleep_ms(50)
+
+    async def drive_centered_one_cell(self, cell_length=14, alpha=400, beta=150, wall_presence_threshold=10, wall_keep_distance=3, front_stop_distance=3, front_presence_distance=10):
+        """Drive one maze cell forward while centering between walls."""
+        degrees_needed = (cell_length * 3600 / 72)
+        pulses_needed = (degrees_needed / 360.0) * PULSES_PER_REV
+
+        self.motorL.count = 0
+        self.motorR.count = 0
+
+        duty = int((MOTOR_SPEED / 100.0) * 65535)
+        prev_error = 0
+
+        self.motorL.motor_rev.duty_u16(0)
+        self.motorR.motor_rev.duty_u16(0)
+
+        last_l_distance = self.sensorL.get_distance_cm()
+        last_r_distance = self.sensorR.get_distance_cm()
+        front_stop_hits = 0
+        last_progress = (self.motorL.count + self.motorR.count) / 2
+        last_progress_time = time.ticks_ms()
+
+        while (self.motorL.count + self.motorR.count) / 2 < pulses_needed:
+            l_distance = self.sensorL.get_distance_cm()
+            r_distance = self.sensorR.get_distance_cm()
+            front_distance = self.sensorF.get_distance_cm()
+
+            if front_distance > 0 and front_distance <= front_stop_distance:
+                front_stop_hits += 1
+                if front_stop_hits >= 3:
+                    print("Front wall confirmed, stopping early")
+                    break
+                else:
+                    print("Front reading low but not stable yet", front_distance)
+            else:
+                front_stop_hits = 0
+
+            current_progress = (self.motorL.count + self.motorR.count) / 2
+            if current_progress > last_progress:
+                last_progress = current_progress
+                last_progress_time = time.ticks_ms()
+            elif time.ticks_diff(time.ticks_ms(), last_progress_time) > 400:
+                print("No encoder progress detected, stopping to avoid stall")
+                break
+
+            left_wall = l_distance > 0 and l_distance < wall_presence_threshold
+            right_wall = r_distance > 0 and r_distance < wall_presence_threshold
+
+            if left_wall and right_wall:
+                error = l_distance - r_distance
+            elif left_wall:
+                error = l_distance - wall_keep_distance
+            elif right_wall:
+                error = wall_keep_distance - r_distance
+            else:
+                error = 0
+
+            d_error = error - prev_error
+            prev_error = error
+            correction = int(alpha * error + beta * d_error)
+            max_correction = int(duty * 0.35)
+            correction = min(max(correction, -max_correction), max_correction)
+            if abs(error) < 0.5:
+                correction = 0
+
+            self.motorL.motor_fwd.duty_u16(min(65535, max(0, duty + correction)))
+            self.motorR.motor_fwd.duty_u16(min(65535, max(0, duty - correction)))
+
+            await asyncio.sleep_ms(10)
+
+        # optional front-wall confirmation when a wall is nearby
+        front_distance = self.sensorF.get_distance_cm()
+        if front_distance > 0 and front_distance < front_presence_distance and front_distance > front_stop_distance:
+            print("Front wall ahead, confirming final position")
+            start = time.ticks_ms()
+            self.motorL.motor_fwd.duty_u16(duty // 2)
+            self.motorR.motor_fwd.duty_u16(duty // 2)
+            while True:
+                front_distance = self.sensorF.get_distance_cm()
+                if front_distance > 0 and front_distance <= front_stop_distance:
+                    break
+                if time.ticks_diff(time.ticks_ms(), start) > 400:
+                    break
+                await asyncio.sleep_ms(20)
+
+        self.motorL.motor_fwd.duty_u16(0)
+        self.motorR.motor_fwd.duty_u16(0)
+        self.motorL.motor_rev.duty_u16(0)
+        self.motorR.motor_rev.duty_u16(0)
 
     async def drive_centered_towards_wall_V2(self, distance_to_wall,wall_separation=20,margin=5):
         def map_range(x, old_min, old_max, new_min, new_max):
@@ -300,7 +388,7 @@ class Robot:
 
         self.motorL.counter = 0
         self.motorR.counter = 0
-        alpha =400
+        alpha =300
         beta = 150
         offsetLimit = 8
         self.motorL.motor_rev.duty_u16(0)
@@ -400,12 +488,12 @@ class Robot:
             print("r_distance: " + str(r_distance) + " l_distance: " + str(l_distance) + " offset: " + str(offset))
             print("force1: " + str(force1) + " force2: " + str(force2) + " applied_force: " + str(applied_force))
             print("_____")
-            await asyncio.sleep_ms(100)
+            await asyncio.sleep_ms(200)
             self.motorL.motor_rev.duty_u16(0)
             self.motorR.motor_rev.duty_u16(0)
             self.motorL.motor_fwd.duty_u16(0)
             self.motorR.motor_fwd.duty_u16(0)
             i+=1
-            await asyncio.sleep_ms(20)
+            await asyncio.sleep_ms(50)
 
         print("Final front distance: " + str(self.sensorF.get_distance_cm()))

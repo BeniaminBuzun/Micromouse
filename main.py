@@ -4,6 +4,7 @@ from motor import Motor
 from distance_sensor import DistanceSensor
 from robot import Robot
 from maze import Maze
+from solver import solve_with_floodfill
 from pico_sender import connect_to_wifi, send_maze_to_server
 import math
 
@@ -48,23 +49,32 @@ async def main():
     # await asyncio.sleep_ms(2000)
     # await robot.drive(5)
     # await robot.rotate_by_90("R")
-    await robot.drive_centered_towards_wall_V3(15,30)
-    await asyncio.sleep_ms(500)
-    await robot.rotate_by_90("R")
-    await asyncio.sleep_ms(500)
-    await robot.drive_centered_towards_wall_V3(15,30)
-    await asyncio.sleep_ms(500)
-    await robot.rotate_by_90("R")
-    await asyncio.sleep_ms(500)
-    await robot.drive_centered_towards_wall_V3(15,30)
-    await asyncio.sleep_ms(500)
-    await robot.rotate_by_90("R")
-    await asyncio.sleep_ms(500)
-    await robot.drive_centered_towards_wall_V3(15,30)
-    await asyncio.sleep_ms(500)
-    await robot.rotate_by_90("R")
-    await asyncio.sleep_ms(500)
-    await robot.drive_centered_towards_wall_V3(45,30)
+    await solve_with_floodfill(
+        robot,
+        maze,
+        goal_pos=(0, 0),
+        start_pos=(2, -2),
+        start_facing=1,
+        cell_length=14,
+        max_steps=20
+    )
+    
+    # await asyncio.sleep_ms(500)
+    # await robot.rotate_by_90("R")
+    # await asyncio.sleep_ms(500)
+    # await robot.drive_centered_towards_wall_V3(15,30)
+    # await asyncio.sleep_ms(500)
+    # await robot.rotate_by_90("R")
+    # await asyncio.sleep_ms(500)
+    # await robot.drive_centered_towards_wall_V3(15,30)
+    # await asyncio.sleep_ms(500)
+    # await robot.rotate_by_90("R")
+    # await asyncio.sleep_ms(500)
+    # await robot.drive_centered_towards_wall_V3(15,30)
+    # await asyncio.sleep_ms(500)
+    # await robot.rotate_by_90("R")
+    # await asyncio.sleep_ms(500)
+    # await robot.drive_centered_towards_wall_V3(45,30)
 
     # i = 0
     # while i<4:

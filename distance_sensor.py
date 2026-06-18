@@ -4,12 +4,13 @@ from machine import Pin, PWM
 
 
 class DistanceSensor:
-    def __init__(self, trigger_pin, echo_pin, samples=10):
+    def __init__(self, trigger_pin, echo_pin, samples=13):
         self.trigger = Pin(trigger_pin, Pin.OUT)
         self.echo = Pin(echo_pin, Pin.IN)
         self.trigger.low()
         self.samples = samples
         self._readings = [0.0] * samples # create a buffer of length `samples`
+        self._last_valid = -1.0
         
     def _raw_distance_cm(self):
         """Single raw measurement."""
@@ -39,8 +40,11 @@ class DistanceSensor:
             if distance > 0: # if distance is valid
                 self._readings.pop(0) # remove the last reading
                 self._readings.append(distance) # add a new reading
+                self._last_valid = distance
             await asyncio.sleep_ms(20) # sleep (async!)
     
     def get_distance_cm(self):
-        return sorted(self._readings)[self.samples//2] # get the median from `_readings` buffer
-
+        valid_values = [d for d in self._readings if d > 0]
+        if valid_values:
+            return sorted(valid_values)[len(valid_values) // 2]
+        return self._last_valid
